@@ -1,0 +1,2 @@
+A simple text list of every library (like Flask) that 
+needs to be installed for the app to run.
