@@ -3,3 +3,11 @@ __pycache__/
 *.pyc
 .env
 instance/
+
+# Node
+node_modules/
+package-lock.json
+.npm
+
+# Tailwind / build output
+dist/
