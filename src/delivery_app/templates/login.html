@@ -1,16 +1,17 @@
-<!-- authentication page -->
-<!-- The specific page where managers and drivers enter their credentials. -->
+<!-- login.html — MediRun secure login. No public registration. -->
 {% extends "base.html" %}
 
 {% block content %}
 
-<div class="min-h-screen flex items-center justify-center px-4">
+<div class="min-h-screen flex items-center justify-center px-4 bg-slate-50">
     <div class="bg-white rounded-2xl shadow-lg p-10 w-full max-w-md">
 
+        <!-- Logo -->
         <div class="flex justify-center mb-6">
-            <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
+            <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
+                     fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                 </svg>
             </div>
         </div>
@@ -24,36 +25,36 @@
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
                     Email
                 </label>
-                <input type="email" name="email" placeholder="sophie@medirun.fr"
-                    class="w-full bg-slate-100 rounded-lg px-4 py-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-500"/>
+                <input type="email" name="email" placeholder="you@medirun.fr" required
+                    class="w-full bg-slate-100 rounded-lg px-4 py-3 text-sm text-gray-800 outline-none
+                           focus:ring-2 focus:ring-blue-500 transition"/>
             </div>
 
             <div>
                 <label class="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-                    Access Key
+                    Password
                 </label>
-                <input type="password" name="password" placeholder="••••••••••••"
-                    class="w-full bg-slate-100 rounded-lg px-4 py-3 text-sm text-gray-800 outline-none focus:ring-2 focus:ring-blue-500"/>
+                <input type="password" name="password" placeholder="••••••••••••" required
+                    class="w-full bg-slate-100 rounded-lg px-4 py-3 text-sm text-gray-800 outline-none
+                           focus:ring-2 focus:ring-blue-500 transition"/>
             </div>
 
             {% if error %}
-            <p class="text-red-500 text-sm text-center">{{ error }}</p>
+            <div class="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                <p class="text-red-600 text-sm text-center">{{ error }}</p>
+            </div>
             {% endif %}
 
             <button type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 rounded-xl transition text-sm">
-                Enter Dashboard
+                class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white
+                       font-semibold py-3 rounded-xl transition text-sm shadow">
+                Sign In
             </button>
 
         </form>
 
-        <p class="text-center text-sm text-gray-500 mt-6">
-            Need an account?
-            <a href="/signup" class="text-blue-600 font-medium hover:underline">Sign up</a>
-        </p>
-
-        <p class="text-center text-xs text-gray-300 mt-4">
-            Authorized Personnel Only • MediRun Systems
+        <p class="text-center text-xs text-gray-300 mt-8">
+            Authorized Personnel Only &bull; MediRun Systems
         </p>
 
     </div>

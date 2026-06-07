@@ -9,31 +9,35 @@
     <div class="flex items-center gap-3">
         <div class="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                 fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
+                 fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
             </svg>
         </div>
         <span class="text-lg font-bold text-gray-900">MediRun</span>
+        <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">CEO</span>
     </div>
 
     <div class="text-sm text-gray-400 font-medium" id="today-date">
         {{ now if now else '' }}
     </div>
 
-    <div class="flex gap-3">
+    <div class="flex items-center gap-3">
+        {% if user %}
+        <span class="text-sm text-gray-600 font-medium">{{ user.full_name() }}</span>
+        {% endif %}
         <button onclick="refreshDeliveries()"
             class="bg-slate-100 hover:bg-slate-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl transition">
             Refresh
         </button>
         <a href="/logout"
-            class="text-sm text-gray-400 hover:text-gray-600 font-medium self-center transition">
+            class="text-sm text-gray-400 hover:text-gray-600 font-medium transition">
             Log out
         </a>
     </div>
 </header>
 
-<!-- KPI Cards -->
-<div class="grid grid-cols-4 gap-4 px-6 py-4">
+<!-- KPI Cards — CEO only -->
+<div class="grid grid-cols-5 gap-4 px-6 py-4">
 
     <div class="bg-white rounded-2xl shadow-sm p-5">
         <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Total Deliveries</p>
@@ -50,7 +54,7 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-sm p-5">
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Critical Deliveries</p>
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Critical</p>
         <p class="text-3xl font-bold text-red-500" id="kpi-critical">
             {% if data %}{{ data.stats.critical_count }}{% else %}--{% endif %}
         </p>
@@ -63,9 +67,16 @@
         </p>
     </div>
 
+    <div class="bg-white rounded-2xl shadow-sm p-5">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Delivered</p>
+        <p class="text-3xl font-bold text-emerald-500" id="kpi-delivered">
+            {% if data %}{{ data.stats.delivered_count }}{% else %}--{% endif %}
+        </p>
+    </div>
+
 </div>
 
-<div class="flex gap-4 px-6 pb-6" style="height: calc(100vh - 220px);">
+<div class="flex gap-4 px-6 pb-6" style="height: calc(100vh - 232px);">
 
     <!-- Map -->
     <div class="bg-white rounded-2xl shadow-sm overflow-hidden flex-1">
@@ -109,8 +120,16 @@
                             &nbsp;·&nbsp;
                             <span class="font-medium">Van:</span> {{ delivery.van_type }}
                         </p>
+                        <!-- Status badge -->
+                        <span class="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-md
+                            {% if delivery.status == 'delivered' %}bg-emerald-50 text-emerald-600
+                            {% elif delivery.status == 'in_progress' %}bg-blue-50 text-blue-600
+                            {% elif delivery.status == 'failed' %}bg-red-50 text-red-500
+                            {% else %}bg-slate-100 text-gray-500{% endif %}">
+                            {{ delivery.status | replace('_', ' ') | capitalize }}
+                        </span>
                         {% if delivery.temperature_sensitive %}
-                        <span class="inline-block mt-1 text-xs bg-blue-50 text-blue-600 font-semibold px-2 py-0.5 rounded-md">
+                        <span class="inline-block mt-1 ml-1 text-xs bg-cyan-50 text-cyan-600 font-semibold px-2 py-0.5 rounded-md">
                             ❄ Temp-sensitive
                         </span>
                         {% endif %}
@@ -139,9 +158,8 @@
                 {% for driver in data.drivers %}
                 <a href="/driver/{{ driver.id }}"
                    class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition group">
-                    <!-- Avatar -->
                     <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0
-                        {% if driver.van_type == 'refrigerated' %}bg-blue-500
+                        {% if driver.van_type == 'refrigerated' %}bg-cyan-500
                         {% elif driver.van_type == 'big' %}bg-violet-500
                         {% else %}bg-emerald-500{% endif %}">
                         {{ driver.name[0] }}
@@ -155,7 +173,6 @@
                             &nbsp;·&nbsp;
                             {{ driver.delivery_count }} deliveries
                         </p>
-                        <!-- Mini workload bar (estimated: 15 min/delivery) -->
                         {% set est_hours = (driver.delivery_count * 0.25) %}
                         {% set pct = [((est_hours / 8) * 100) | int, 100] | min %}
                         <div class="flex items-center gap-2 mt-1">
@@ -186,44 +203,26 @@
 </div>
 
 <script>
-// -------------------------------------------------------------------------
-// Tab switching
-// -------------------------------------------------------------------------
+// ── Tab switching ─────────────────────────────────────────────────────────────
 function showTab(name) {
-    const tabs = ['deliveries', 'drivers'];
-    tabs.forEach(t => {
+    ['deliveries', 'drivers'].forEach(t => {
         const panel = document.getElementById('panel-' + t);
         const btn   = document.getElementById('tab-' + t);
         if (t === name) {
             panel.classList.remove('hidden');
-            btn.classList.add('border-blue-600', 'text-blue-600');
-            btn.classList.remove('border-transparent', 'text-gray-400');
+            btn.classList.add('border-blue-600', 'text-blue-600', 'font-bold');
+            btn.classList.remove('border-transparent', 'text-gray-400', 'font-semibold');
         } else {
             panel.classList.add('hidden');
-            btn.classList.remove('border-blue-600', 'text-blue-600');
-            btn.classList.add('border-transparent', 'text-gray-400');
+            btn.classList.remove('border-blue-600', 'text-blue-600', 'font-bold');
+            btn.classList.add('border-transparent', 'text-gray-400', 'font-semibold');
         }
     });
 }
 
-// -------------------------------------------------------------------------
-// Map
-// -------------------------------------------------------------------------
-let map, markers = [];
-
-const PRIORITY_COLORS = {
-    critical: '#ef4444',   // red-500
-    high:     '#f59e0b',   // amber-500
-    normal:   '#3b82f6',   // blue-500
-};
-
-const VAN_COLORS = {
-    1: '#3b82f6',   // Marc – blue
-    2: '#8b5cf6',   // Luc – violet
-    3: '#10b981',   // Ahmed – emerald
-    4: '#06b6d4',   // Sophie – cyan
-    5: '#f97316',   // Jean – orange
-};
+// ── Map ───────────────────────────────────────────────────────────────────────
+const PRIORITY_COLORS = { critical: '#ef4444', high: '#f59e0b', normal: '#3b82f6' };
+const VAN_COLORS = { 1: '#3b82f6', 2: '#8b5cf6', 3: '#10b981', 4: '#06b6d4', 5: '#f97316' };
 
 function makeIcon(color, tempSensitive) {
     const border = tempSensitive ? '#06b6d4' : color;
@@ -233,143 +232,91 @@ function makeIcon(color, tempSensitive) {
         <circle cx="14" cy="13" r="6" fill="white" opacity="0.9"/>
         <circle cx="14" cy="13" r="4" fill="${color}"/>
     </svg>`;
-    return L.divIcon({
-        html: svg,
-        iconSize:   [28, 36],
-        iconAnchor: [14, 36],
-        popupAnchor:[0, -36],
-        className:  ''
-    });
+    return L.divIcon({ html: svg, iconSize:[28,36], iconAnchor:[14,36], popupAnchor:[0,-36], className:'' });
 }
 
 function initMap() {
-    const warehouseLat = {{ data.warehouse.lat if data else 48.8566 }};
-    const warehouseLng = {{ data.warehouse.lng if data else 2.3522 }};
+    const wLat = {{ data.warehouse.lat if data else 48.8566 }};
+    const wLng = {{ data.warehouse.lng if data else 2.3522 }};
 
-    map = L.map('map').setView([warehouseLat, warehouseLng], 12);
-
+    const map = L.map('map').setView([wLat, wLng], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Warehouse marker
+    // Warehouse
     const warehouseIcon = L.divIcon({
         html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
             <rect width="32" height="32" rx="8" fill="#1e40af"/>
             <text x="16" y="22" text-anchor="middle" fill="white" font-size="16">🏭</text>
         </svg>`,
-        iconSize:   [32, 32],
-        iconAnchor: [16, 32],
-        className:  ''
+        iconSize:[32,32], iconAnchor:[16,32], className:''
     });
-    L.marker([warehouseLat, warehouseLng], { icon: warehouseIcon })
-     .addTo(map)
-     .bindPopup('<b>MediRun Warehouse</b>');
+    L.marker([wLat, wLng], { icon: warehouseIcon }).addTo(map).bindPopup('<b>MediRun Warehouse</b>');
 
-    // Delivery markers
+    // Deliveries
     const deliveries = {{ data.deliveries | tojson if data else '[]' }};
-    deliveries.forEach(d => {
-        const lat  = d.location.lat;
-        const lng  = d.location.lng;
-        const color = PRIORITY_COLORS[d.priority] || '#6b7280';
-        const icon  = makeIcon(color, d.temperature_sensitive);
-
-        const tempBadge = d.temperature_sensitive
-            ? '<br><span style="color:#06b6d4;font-weight:600">❄ Temp-sensitive</span>'
-            : '';
-        const popup = `
-            <b>${d.location.name}</b><br>
-            <span style="color:#6b7280;font-size:12px">${d.location.address}</span><br>
-            <b>Driver:</b> ${d.driver_name} &nbsp;|&nbsp; <b>Van:</b> ${d.van_type}<br>
-            <b>Deadline:</b> ${d.deadline} &nbsp;|&nbsp; <b>Priority:</b> ${d.priority}
-            ${tempBadge}
-        `;
-        L.marker([lat, lng], { icon })
-         .addTo(map)
-         .bindPopup(popup);
-    });
-
-    // Draw routes per driver (line from warehouse through their deliveries)
     const byDriver = {};
     deliveries.forEach(d => {
+        const color = PRIORITY_COLORS[d.priority] || '#6b7280';
+        const icon  = makeIcon(color, d.temperature_sensitive);
+        const tempBadge = d.temperature_sensitive ? '<br><span style="color:#06b6d4;font-weight:600">❄ Temp-sensitive</span>' : '';
+        const popup = `<b>${d.location.name}</b><br>
+            <span style="color:#6b7280;font-size:12px">${d.location.address}</span><br>
+            <b>Driver:</b> ${d.driver_name} | <b>Van:</b> ${d.van_type}<br>
+            <b>Deadline:</b> ${d.deadline} | <b>Priority:</b> ${d.priority}
+            <br><b>Status:</b> ${d.status}${tempBadge}`;
+        L.marker([d.location.lat, d.location.lng], { icon }).addTo(map).bindPopup(popup);
         if (!byDriver[d.driver_id]) byDriver[d.driver_id] = [];
         byDriver[d.driver_id].push([d.location.lat, d.location.lng]);
     });
 
-    Object.entries(byDriver).forEach(([driverId, coords]) => {
-        const color  = VAN_COLORS[parseInt(driverId)] || '#9ca3af';
-        const route  = [[warehouseLat, warehouseLng], ...coords];
-        L.polyline(route, { color, weight: 2, opacity: 0.55, dashArray: '5,7' }).addTo(map);
+    // Routes
+    Object.entries(byDriver).forEach(([did, coords]) => {
+        const color = VAN_COLORS[parseInt(did)] || '#9ca3af';
+        L.polyline([[wLat, wLng], ...coords], { color, weight:2, opacity:0.55, dashArray:'5,7' }).addTo(map);
     });
 }
 
-// -------------------------------------------------------------------------
-// Refresh (re-fetches /api/assignments and rebuilds the delivery list)
-// -------------------------------------------------------------------------
+// ── Refresh ───────────────────────────────────────────────────────────────────
 async function refreshDeliveries() {
     try {
         const res  = await fetch('/api/assignments');
         const data = await res.json();
+        document.getElementById('kpi-total').textContent     = data.stats.total_deliveries;
+        document.getElementById('kpi-drivers').textContent   = data.stats.active_drivers + '/' + data.stats.total_drivers;
+        document.getElementById('kpi-critical').textContent  = data.stats.critical_count;
+        document.getElementById('kpi-temp').textContent      = data.stats.temp_sensitive;
+        if (document.getElementById('kpi-delivered'))
+            document.getElementById('kpi-delivered').textContent = data.stats.delivered_count || 0;
 
-        // Update KPIs
-        document.getElementById('kpi-total').textContent    = data.stats.total_deliveries;
-        document.getElementById('kpi-drivers').textContent  = data.stats.active_drivers + '/' + data.stats.total_drivers;
-        document.getElementById('kpi-critical').textContent = data.stats.critical_count;
-        document.getElementById('kpi-temp').textContent     = data.stats.temp_sensitive;
-
-        // Rebuild delivery list
         const panel = document.getElementById('panel-deliveries');
         panel.innerHTML = data.deliveries.map(d => {
-            const borderColor = d.priority === 'critical' ? 'border-red-400'
-                              : d.priority === 'high'     ? 'border-amber-400'
-                              :                             'border-blue-300';
-            const badgeClass  = d.priority === 'critical' ? 'bg-red-100 text-red-600'
-                              : d.priority === 'high'     ? 'bg-amber-100 text-amber-600'
-                              :                             'bg-gray-100 text-gray-500';
-            const tempBadge   = d.temperature_sensitive
-                ? '<span class="inline-block mt-1 text-xs bg-blue-50 text-blue-600 font-semibold px-2 py-0.5 rounded-md">❄ Temp-sensitive</span>'
-                : '';
-            return `
-            <div class="flex items-start gap-3 px-5 py-4 border-l-4 ${borderColor}">
+            const bc = d.priority==='critical'?'border-red-400':d.priority==='high'?'border-amber-400':'border-blue-300';
+            const bg = d.priority==='critical'?'bg-red-100 text-red-600':d.priority==='high'?'bg-amber-100 text-amber-600':'bg-gray-100 text-gray-500';
+            const sc = d.status==='delivered'?'bg-emerald-50 text-emerald-600':d.status==='in_progress'?'bg-blue-50 text-blue-600':'bg-slate-100 text-gray-500';
+            const tempBadge = d.temperature_sensitive ? '<span class="inline-block mt-1 ml-1 text-xs bg-cyan-50 text-cyan-600 font-semibold px-2 py-0.5 rounded-md">❄ Temp-sensitive</span>' : '';
+            return `<div class="flex items-start gap-3 px-5 py-4 border-l-4 ${bc}">
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-semibold text-gray-900 truncate">${d.location.name}</p>
                     <p class="text-xs text-gray-400 mt-0.5">${d.location.address}</p>
-                    <p class="text-xs text-gray-500 mt-1">
-                        <span class="font-medium">Deadline:</span> ${d.deadline}
-                        &nbsp;·&nbsp;
-                        <span class="font-medium">Driver:</span> ${d.driver_name}
-                        &nbsp;·&nbsp;
-                        <span class="font-medium">Van:</span> ${d.van_type}
-                    </p>
+                    <p class="text-xs text-gray-500 mt-1"><span class="font-medium">Deadline:</span> ${d.deadline} &nbsp;·&nbsp; <span class="font-medium">Driver:</span> ${d.driver_name} &nbsp;·&nbsp; <span class="font-medium">Van:</span> ${d.van_type}</p>
+                    <span class="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-md ${sc}">${d.status.replace('_',' ').replace(/^\w/,c=>c.toUpperCase())}</span>
                     ${tempBadge}
                 </div>
                 <div class="flex flex-col items-end gap-1 shrink-0">
-                    <span class="text-xs font-semibold px-2 py-1 rounded-lg ${badgeClass}">
-                        ${d.priority.charAt(0).toUpperCase() + d.priority.slice(1)}
-                    </span>
+                    <span class="text-xs font-semibold px-2 py-1 rounded-lg ${bg}">${d.priority.charAt(0).toUpperCase()+d.priority.slice(1)}</span>
                     <span class="text-xs text-gray-400">${d.destination_type}</span>
                 </div>
             </div>`;
         }).join('');
-    } catch (e) {
-        console.error('Refresh failed:', e);
-    }
-}
-
-// -------------------------------------------------------------------------
-// Date display
-// -------------------------------------------------------------------------
-function setTodayDate() {
-    const el = document.getElementById('today-date');
-    if (el && !el.textContent.trim()) {
-        el.textContent = new Date().toLocaleDateString('en-GB', {
-            weekday: 'long', day: 'numeric', month: 'long'
-        });
-    }
+    } catch(e) { console.error('Refresh failed:', e); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    setTodayDate();
+    const el = document.getElementById('today-date');
+    if (el && !el.textContent.trim())
+        el.textContent = new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' });
     initMap();
 });
 </script>

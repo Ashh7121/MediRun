@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <div class="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+        </div>
+        <span class="text-lg font-bold text-gray-900">MediRun</span>
+        <span class="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-0.5 rounded-full">Driver</span>
+    </div>
+
+    <div class="text-sm text-gray-400 font-medium">
+        {{ now if now else '' }}
+    </div>
+
+    <div class="flex items-center gap-3">
+        {% if user %}
+        <span class="text-sm text-gray-600 font-medium">{{ user.full_name() }}</span>
+        {% endif %}
+        <a href="/logout"
+            class="text-sm text-gray-400 hover:text-gray-600 font-medium transition">
+            Log out
+        </a>
+    </div>
+</header>
+
+{% if data %}
+
+<!-- Driver KPI strip -->
+<div class="grid grid-cols-4 gap-4 px-6 py-4">
+    <div class="bg-white rounded-2xl shadow-sm p-5">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">My Deliveries</p>
+        <p class="text-3xl font-bold text-gray-900">{{ data.stats.total }}</p>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-5">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Pending</p>
+        <p class="text-3xl font-bold text-blue-500">{{ data.stats.pending }}</p>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-5">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Delivered</p>
+        <p class="text-3xl font-bold text-emerald-500">{{ data.stats.delivered }}</p>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm p-5">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Critical</p>
+        <p class="text-3xl font-bold text-red-500">{{ data.stats.critical }}</p>
+    </div>
+</div>
+
+<div class="flex gap-4 px-6 pb-6" style="height: calc(100vh - 220px);">
+
+    <!-- Map -->
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden flex-1">
+        <div id="map" class="w-full h-full"></div>
+    </div>
+
+    <!-- Delivery list -->
+    <div class="bg-white rounded-2xl shadow-sm flex flex-col w-96 xl:w-[480px]">
+
+        <div class="px-5 pt-4 pb-3 border-b border-gray-100">
+            <h2 class="text-sm font-bold text-gray-900">My Deliveries Today</h2>
+            <p class="text-xs text-gray-400 mt-0.5">{{ data.driver.name }} · {{ data.driver.van_type | capitalize }} van</p>
+        </div>
+
+        <div class="overflow-y-auto flex-1 divide-y divide-gray-50">
+            {% if data.driver.deliveries %}
+                {% for delivery in data.driver.deliveries %}
+                <div class="flex items-start gap-3 px-5 py-4
+                    {% if delivery.priority == 'critical' %}border-l-4 border-red-400
+                    {% elif delivery.priority == 'high' %}border-l-4 border-amber-400
+                    {% else %}border-l-4 border-blue-300{% endif %}"
+                    id="delivery-{{ delivery.id }}">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-900 truncate">
+                            {{ delivery.location.name }}
+                        </p>
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            {{ delivery.location.address }}
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <span class="font-medium">Deadline:</span> {{ delivery.deadline }}
+                        </p>
+                        <!-- Status controls -->
+                        <div class="flex gap-2 mt-2 flex-wrap">
+                            <span id="status-badge-{{ delivery.id }}"
+                                class="text-xs font-semibold px-2 py-0.5 rounded-md
+                                {% if delivery.status == 'delivered' %}bg-emerald-50 text-emerald-600
+                                {% elif delivery.status == 'in_progress' %}bg-blue-50 text-blue-600
+                                {% elif delivery.status == 'failed' %}bg-red-50 text-red-500
+                                {% else %}bg-slate-100 text-gray-500{% endif %}">
+                                {{ delivery.status | replace('_', ' ') | capitalize }}
+                            </span>
+                            {% if delivery.status == 'pending' %}
+                            <button onclick="updateStatus({{ delivery.id }}, 'in_progress')"
+                                class="text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-0.5 rounded-lg transition">
+                                Start
+                            </button>
+                            {% elif delivery.status == 'in_progress' %}
+                            <button onclick="updateStatus({{ delivery.id }}, 'delivered')"
+                                class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-0.5 rounded-lg transition">
+                                Mark Delivered
+                            </button>
+                            <button onclick="updateStatus({{ delivery.id }}, 'failed')"
+                                class="text-xs bg-red-500 hover:bg-red-600 text-white font-semibold px-3 py-0.5 rounded-lg transition">
+                                Failed
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if delivery.temperature_sensitive %}
+                        <span class="inline-block mt-1 text-xs bg-cyan-50 text-cyan-600 font-semibold px-2 py-0.5 rounded-md">
+                            ❄ Temp-sensitive
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <span class="text-xs font-semibold px-2 py-1 rounded-lg
+                            {% if delivery.priority == 'critical' %}bg-red-100 text-red-600
+                            {% elif delivery.priority == 'high' %}bg-amber-100 text-amber-600
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {{ delivery.priority | capitalize }}
+                        </span>
+                        <span class="text-xs text-gray-400">{{ delivery.destination_type }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="flex items-center justify-center h-full text-gray-400 text-sm py-12">
+                    No deliveries assigned for today.
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ── Status update ─────────────────────────────────────────────────────────────
+async function updateStatus(deliveryId, newStatus) {
+    try {
+        const res = await fetch(`/delivery/${deliveryId}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Update badge
+            const badge = document.getElementById('status-badge-' + deliveryId);
+            const label = newStatus.replace('_',' ').replace(/^\w/,c=>c.toUpperCase());
+            if (badge) {
+                badge.textContent = label;
+                badge.className = 'text-xs font-semibold px-2 py-0.5 rounded-md ';
+                if (newStatus === 'delivered')    badge.className += 'bg-emerald-50 text-emerald-600';
+                else if (newStatus === 'in_progress') badge.className += 'bg-blue-50 text-blue-600';
+                else if (newStatus === 'failed')  badge.className += 'bg-red-50 text-red-500';
+                else badge.className += 'bg-slate-100 text-gray-500';
+            }
+            // Remove action buttons
+            const card = document.getElementById('delivery-' + deliveryId);
+            if (card) {
+                card.querySelectorAll('button').forEach(b => b.remove());
+            }
+        }
+    } catch(e) {
+        console.error('Status update failed:', e);
+    }
+}
+
+// ── Map ───────────────────────────────────────────────────────────────────────
+function initMap() {
+    const wLat = {{ data.warehouse.lat }};
+    const wLng = {{ data.warehouse.lng }};
+    const map  = L.map('map').setView([wLat, wLng], 12);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Warehouse
+    const warehouseIcon = L.divIcon({
+        html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+            <rect width="32" height="32" rx="8" fill="#1e40af"/>
+            <text x="16" y="22" text-anchor="middle" fill="white" font-size="16">🏭</text>
+        </svg>`,
+        iconSize:[32,32], iconAnchor:[16,32], className:''
+    });
+    L.marker([wLat, wLng], { icon: warehouseIcon }).addTo(map).bindPopup('<b>MediRun Warehouse</b>');
+
+    const PRIORITY_COLORS = { critical:'#ef4444', high:'#f59e0b', normal:'#10b981' };
+    const deliveries = {{ data.driver.deliveries | tojson }};
+    const routeCoords = [[wLat, wLng]];
+
+    deliveries.forEach(d => {
+        const lat = d.location.lat, lng = d.location.lng;
+        routeCoords.push([lat, lng]);
+        const color = PRIORITY_COLORS[d.priority] || '#6b7280';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+            <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
+                  fill="${color}" stroke="white" stroke-width="2"/>
+            <circle cx="14" cy="13" r="6" fill="white" opacity="0.9"/>
+            <circle cx="14" cy="13" r="4" fill="${color}"/>
+        </svg>`;
+        const icon = L.divIcon({ html:svg, iconSize:[28,36], iconAnchor:[14,36], popupAnchor:[0,-36], className:'' });
+        const tempBadge = d.temperature_sensitive ? '<br><span style="color:#06b6d4;font-weight:600">❄ Temp-sensitive</span>' : '';
+        L.marker([lat, lng], { icon }).addTo(map)
+         .bindPopup(`<b>${d.location.name}</b><br><span style="color:#6b7280;font-size:12px">${d.location.address}</span><br><b>Deadline:</b> ${d.deadline} | <b>Priority:</b> ${d.priority}<br><b>Status:</b> ${d.status}${tempBadge}`);
+    });
+
+    if (routeCoords.length > 1)
+        L.polyline(routeCoords, { color:'#10b981', weight:2.5, opacity:0.65, dashArray:'5,7' }).addTo(map);
+}
+
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+
+{% else %}
+<div class="flex flex-col items-center justify-center h-64 text-gray-400">
+    <p class="text-lg font-semibold">No delivery profile found.</p>
+    <p class="text-sm mt-1">Please contact your administrator.</p>
+</div>
+{% endif %}
+
+{% endblock %}

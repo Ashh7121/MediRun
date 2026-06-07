@@ -22,7 +22,7 @@ MediRun helps dispatch managers optimize daily delivery routes by:
 ### 1. Clone or Navigate to Project
 
 ```bash
-cd c:\Users\Admin\Documents\GitHub\MediRun
+cd c:\Users\suraj\OneDrive\MediRun
 ```
 
 ### 2. Create and Activate Virtual Environment
@@ -54,7 +54,15 @@ pip install -r src/delivery_app/requirements.txt
 
 ## Running the Application
 
-### Start the Flask Development Server
+### 1. Initialize the Database (Optional)
+
+If starting fresh, seed the database with test data:
+
+```bash
+python seed_db.py
+```
+
+### 2. Start the Flask Development Server
 
 ```bash
 python run.py
@@ -62,41 +70,71 @@ python run.py
 
 The application will start on **http://127.0.0.1:5000**
 
-### Access the Application
+### 3. Access the Application
 
 1. Open your browser and navigate to `http://localhost:5000`
 2. You will be redirected to the login page
-3. **Sign up** for a new manager account or use existing credentials
+3. Log in with seeded credentials
 4. Access the **dashboard** to view and manage delivery routes
+
+## Authentication & Authorization
+
+MediRun implements role-based access control to ensure only authorized personnel can access the system.
+
+### User Roles
+
+- **CEO**: Full administrative access including dashboard, KPIs, all deliveries, and all drivers
+- **Driver**: Limited access to view and update their own assigned deliveries
+
+### Security Model
+
+- **Pre-seeded Accounts**: Only accounts that have been created in the database can log in. Public self-registration is disabled.
+- **Password Hashing**: All passwords are securely hashed using industry-standard algorithms
+- **Session Management**: Authentication is maintained via secure sessions. Users must log in to access any route beyond the login page.
+- **Role-based Routes**: Routes are protected with decorators that verify the user's role:
+  - The `/dashboard` route is restricted to CEO-only access
+  - The `/my-deliveries` route is restricted to authenticated drivers
+  - Drivers cannot access other drivers' delivery lists or CEO features
+
+### Adding New Users
+
+New user accounts must be added to the database by an administrator. This can be done via:
+- The `seed_db.py` script (for initial setup with test data)
+- Direct database manipulation
+- A future admin panel (if implemented)
 
 ## Project Structure
 
 ```
 MediRun/
 ├── run.py                          # Entry point for Flask app
+├── seed_db.py                      # Database initialization with test data
 ├── requirements.txt                # Root dependencies
 ├── tailwind.config.js              # Tailwind CSS configuration
 ├── src/
 │   └── delivery_app/
 │       ├── __init__.py
 │       ├── app.py                  # Flask app factory and routes
-│       ├── models.py               # Database models (Manager, Driver, etc.)
+│       ├── models.py               # Database models (User, Driver, Delivery, etc.)
 │       ├── config.py               # Configuration settings
 │       ├── requirements.txt        # App-specific dependencies
 │       ├── static/
-│       │   ├── style.css           # Main stylesheet
-│       │   ├── src.css             # Tailwind source
-│       │   └── script.js           # Client-side JavaScript
+│       │   ├── style.css           # Compiled stylesheet (from Tailwind)
+│       │   └── src.css             # Tailwind source
 │       └── templates/
-│           ├── base.html           # Base template
+│           ├── base.html           # Base template (layout)
 │           ├── login.html          # Login page
 │           ├── signup.html         # Signup page
-│           └── dashboard.html      # Main dashboard
+│           ├── dashboard.html      # Main manager dashboard
+│           ├── driver_portal.html   # Driver portal page
+│           ├── driver.html         # Individual driver details page
+│           └── 403.html            # Authorization error page
 ├── services/
-│   ├── assign_driver.py            # Driver assignment algorithm
-│   └── test_dummy_data.py          # Test data with 60 realistic deliveries
-└── docs/
-    └── IDEAS.md                    # Project ideas and notes
+│   ├── assign_driver.py            # VRP service for driver assignment
+│   └── test_dummy_data.py          # Test data fixtures
+├── docs/
+│   └── IDEAS.md                    # Project ideas and notes
+└── instance/                       # Flask instance folder (database, local config)
 ```
 
 ## Key Features

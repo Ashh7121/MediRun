@@ -5,148 +5,106 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Header -->
-<header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-4">
-        <a href="/dashboard"
-           class="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            Dashboard
-        </a>
-        <span class="text-gray-200">|</span>
-        <!-- Driver avatar + name -->
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-base
-                {% if driver.van_type == 'refrigerated' %}bg-blue-500
-                {% elif driver.van_type == 'big' %}bg-violet-500
-                {% else %}bg-emerald-500{% endif %}">
-                {{ driver.name[0] }}
-            </div>
-            <div>
-                <p class="text-base font-bold text-gray-900">{{ driver.name }}</p>
-                <p class="text-xs text-gray-400 capitalize">{{ driver.van_type }} van</p>
-            </div>
-        </div>
-    </div>
+<header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4">
+    <a href="/dashboard"
+       class="text-sm text-gray-400 hover:text-gray-600 font-medium flex items-center gap-1 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Dashboard
+    </a>
+
+    <div class="flex-1"></div>
 
     <div class="flex items-center gap-3">
-        <!-- Van type badge -->
-        <span class="text-xs font-semibold px-3 py-1.5 rounded-full
-            {% if driver.van_type == 'refrigerated' %}bg-blue-100 text-blue-700
-            {% elif driver.van_type == 'big' %}bg-violet-100 text-violet-700
-            {% else %}bg-emerald-100 text-emerald-700{% endif %}">
-            {% if driver.van_type == 'refrigerated' %}❄ Refrigerated
-            {% elif driver.van_type == 'big' %}🚚 Large Van
-            {% else %}🚐 Small Van{% endif %}
-        </span>
-        <a href="/logout"
-           class="text-sm text-gray-400 hover:text-gray-600 font-medium transition">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold
+            {% if driver.van_type == 'refrigerated' %}bg-cyan-500
+            {% elif driver.van_type == 'big' %}bg-violet-500
+            {% else %}bg-emerald-500{% endif %}">
+            {{ driver.name[0] }}
+        </div>
+        <div>
+            <p class="text-sm font-bold text-gray-900">{{ driver.name }}</p>
+            <p class="text-xs text-gray-400">{{ driver.van_type | capitalize }} van · {{ driver.delivery_count }} deliveries</p>
+        </div>
+        <a href="/logout" class="ml-4 text-sm text-gray-400 hover:text-gray-600 font-medium transition">
             Log out
         </a>
     </div>
 </header>
 
-<!-- Sub-stats bar -->
-<div class="grid grid-cols-4 gap-4 px-6 py-4">
-
-    <div class="bg-white rounded-2xl shadow-sm p-5">
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Assigned</p>
-        <p class="text-3xl font-bold text-gray-900">{{ driver.delivery_count }}</p>
+<!-- Workload estimate -->
+{% set est_hours = (driver.delivery_count * 0.25) %}
+{% set pct = [((est_hours / 8) * 100) | int, 100] | min %}
+<div class="bg-white border-b border-gray-100 px-6 py-3 flex items-center gap-4">
+    <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Estimated workload</span>
+    <div class="flex-1 bg-slate-100 rounded-full h-2 max-w-xs">
+        <div class="h-2 rounded-full
+            {% if pct >= 90 %}bg-red-400{% elif pct >= 70 %}bg-amber-400{% else %}bg-blue-500{% endif %}"
+            style="width: {{ pct }}%"></div>
     </div>
-
-    <div class="bg-white rounded-2xl shadow-sm p-5">
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Critical</p>
-        <p class="text-3xl font-bold text-red-500">
-            {{ driver.deliveries | selectattr('priority', 'equalto', 'critical') | list | length }}
-        </p>
-    </div>
-
-    <div class="bg-white rounded-2xl shadow-sm p-5">
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Temp-Sensitive</p>
-        <p class="text-3xl font-bold text-blue-500">
-            {{ driver.deliveries | selectattr('temperature_sensitive') | list | length }}
-        </p>
-    </div>
-
-    <div class="bg-white rounded-2xl shadow-sm p-5">
-        <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">Est. Duration</p>
-        <p class="text-3xl font-bold text-gray-900">
-            ~{{ '%.1f'|format(driver.delivery_count * 0.25) }}h
-        </p>
-    </div>
-
+    <span class="text-xs text-gray-500 font-medium">~{{ '%.1f'|format(est_hours) }}h / 8h</span>
 </div>
 
-<!-- Main content: map + delivery list -->
-<div class="flex gap-4 px-6 pb-6" style="height: calc(100vh - 220px);">
+<div class="flex gap-4 px-6 py-4" style="height: calc(100vh - 148px);">
 
     <!-- Map -->
     <div class="bg-white rounded-2xl shadow-sm overflow-hidden flex-1">
         <div id="map" class="w-full h-full"></div>
     </div>
 
-    <!-- Delivery list -->
+    <!-- Delivery list for this driver -->
     <div class="bg-white rounded-2xl shadow-sm flex flex-col w-96 xl:w-[480px]">
 
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <p class="text-sm font-bold text-gray-800">Route — {{ driver.delivery_count }} stops</p>
-            <span class="text-xs text-gray-400">Sorted by deadline</span>
+        <div class="px-5 pt-4 pb-3 border-b border-gray-100">
+            <h2 class="text-sm font-bold text-gray-900">Assigned Deliveries</h2>
         </div>
 
         <div class="overflow-y-auto flex-1 divide-y divide-gray-50">
             {% if driver.deliveries %}
-                {# Sort by deadline for the driver's route view #}
-                {% for delivery in driver.deliveries | sort(attribute='deadline') %}
+                {% for delivery in driver.deliveries %}
                 <div class="flex items-start gap-3 px-5 py-4
                     {% if delivery.priority == 'critical' %}border-l-4 border-red-400
                     {% elif delivery.priority == 'high' %}border-l-4 border-amber-400
                     {% else %}border-l-4 border-blue-300{% endif %}">
-
-                    <!-- Stop number -->
-                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0 mt-0.5">
-                        {{ loop.index }}
-                    </div>
-
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-900 truncate">
                             {{ delivery.location.name }}
                         </p>
-                        <p class="text-xs text-gray-400 mt-0.5 truncate">
+                        <p class="text-xs text-gray-400 mt-0.5">
                             {{ delivery.location.address }}
                         </p>
-                        <div class="flex items-center gap-2 mt-1 flex-wrap">
-                            <span class="text-xs text-gray-500">
-                                <span class="font-medium">By</span> {{ delivery.deadline }}
-                            </span>
-                            <span class="text-gray-200">·</span>
-                            <span class="text-xs capitalize text-gray-500">{{ delivery.destination_type }}</span>
-                            {% if delivery.temperature_sensitive %}
-                            <span class="text-xs bg-blue-50 text-blue-600 font-semibold px-1.5 py-0.5 rounded">
-                                ❄ Cold chain
-                            </span>
-                            {% endif %}
-                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <span class="font-medium">Deadline:</span> {{ delivery.deadline }}
+                        </p>
+                        <span class="inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-md
+                            {% if delivery.status == 'delivered' %}bg-emerald-50 text-emerald-600
+                            {% elif delivery.status == 'in_progress' %}bg-blue-50 text-blue-600
+                            {% elif delivery.status == 'failed' %}bg-red-50 text-red-500
+                            {% else %}bg-slate-100 text-gray-500{% endif %}">
+                            {{ delivery.status | replace('_', ' ') | capitalize }}
+                        </span>
+                        {% if delivery.temperature_sensitive %}
+                        <span class="inline-block mt-1 ml-1 text-xs bg-cyan-50 text-cyan-600 font-semibold px-2 py-0.5 rounded-md">
+                            ❄ Temp-sensitive
+                        </span>
+                        {% endif %}
                     </div>
-
-                    <span class="text-xs font-semibold px-2 py-1 rounded-lg shrink-0
-                        {% if delivery.priority == 'critical' %}bg-red-100 text-red-600
-                        {% elif delivery.priority == 'high' %}bg-amber-100 text-amber-600
-                        {% else %}bg-gray-100 text-gray-500{% endif %}">
-                        {{ delivery.priority | capitalize }}
-                    </span>
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <span class="text-xs font-semibold px-2 py-1 rounded-lg
+                            {% if delivery.priority == 'critical' %}bg-red-100 text-red-600
+                            {% elif delivery.priority == 'high' %}bg-amber-100 text-amber-600
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {{ delivery.priority | capitalize }}
+                        </span>
+                        <span class="text-xs text-gray-400">{{ delivery.destination_type }}</span>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
-                <div class="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
-                         fill="none" stroke="currentColor" stroke-width="1.5" class="text-gray-200">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 8v4l3 3"/>
-                    </svg>
-                    <p class="text-sm">No deliveries assigned to this driver today.</p>
+                <div class="flex items-center justify-center h-full text-gray-400 text-sm py-12">
+                    No deliveries assigned to this driver.
                 </div>
             {% endif %}
         </div>
@@ -155,86 +113,47 @@
 </div>
 
 <script>
-// -----------------------------------------------------------------------
-// Map for driver page
-// -----------------------------------------------------------------------
-const PRIORITY_COLORS = {
-    critical: '#ef4444',
-    high:     '#f59e0b',
-    normal:   '#3b82f6',
-};
-
-function makeIcon(color, tempSensitive, index) {
-    const border = tempSensitive ? '#06b6d4' : color;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42">
-        <path d="M16 0C7.163 0 0 7.163 0 16c0 10.667 16 26 16 26S32 26.667 32 16C32 7.163 24.837 0 16 0z"
-              fill="${border}" stroke="white" stroke-width="2"/>
-        <circle cx="16" cy="15" r="9" fill="white" opacity="0.9"/>
-        <text x="16" y="20" text-anchor="middle" fill="${color}"
-              font-size="11" font-weight="700" font-family="system-ui">${index}</text>
-    </svg>`;
-    return L.divIcon({ html: svg, iconSize: [32,42], iconAnchor: [16,42], popupAnchor: [0,-42], className: '' });
-}
-
 function initMap() {
-    const warehouseLat = {{ warehouse.lat }};
-    const warehouseLng = {{ warehouse.lng }};
-
-    const map = L.map('map').setView([warehouseLat, warehouseLng], 13);
+    const wLat = {{ warehouse.lat }};
+    const wLng = {{ warehouse.lng }};
+    const map  = L.map('map').setView([wLat, wLng], 12);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
     // Warehouse
-    const whIcon = L.divIcon({
-        html: `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
-            <rect width="36" height="36" rx="10" fill="#1e40af"/>
-            <text x="18" y="25" text-anchor="middle" fill="white" font-size="18">🏭</text>
+    const wIcon = L.divIcon({
+        html: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+            <rect width="32" height="32" rx="8" fill="#1e40af"/>
+            <text x="16" y="22" text-anchor="middle" fill="white" font-size="16">🏭</text>
         </svg>`,
-        iconSize:[36,36], iconAnchor:[18,36], className:''
+        iconSize:[32,32], iconAnchor:[16,32], className:''
     });
-    L.marker([warehouseLat, warehouseLng], { icon: whIcon })
-     .addTo(map)
-     .bindPopup('<b>MediRun Warehouse</b>');
+    L.marker([wLat, wLng], { icon: wIcon }).addTo(map).bindPopup('<b>MediRun Warehouse</b>');
 
-    const deliveries = {{ driver.deliveries | sort(attribute='deadline') | tojson }};
-    const routeCoords = [[warehouseLat, warehouseLng]];
+    const COLORS = { critical:'#ef4444', high:'#f59e0b', normal:'#10b981' };
+    const deliveries = {{ driver.deliveries | tojson }};
+    const route = [[wLat, wLng]];
 
-    deliveries.forEach((d, i) => {
-        const lat   = d.location.lat;
-        const lng   = d.location.lng;
-        const color = PRIORITY_COLORS[d.priority] || '#6b7280';
-        const icon  = makeIcon(color, d.temperature_sensitive, i + 1);
-
-        const tempBadge = d.temperature_sensitive
-            ? '<br><span style="color:#06b6d4;font-weight:600">❄ Temp-sensitive</span>'
-            : '';
-        const popup = `
-            <b>${i+1}. ${d.location.name}</b><br>
-            <span style="color:#6b7280;font-size:12px">${d.location.address}</span><br>
-            <b>Deadline:</b> ${d.deadline} &nbsp;|&nbsp; <b>Priority:</b> ${d.priority}
-            ${tempBadge}
-        `;
-        L.marker([lat, lng], { icon }).addTo(map).bindPopup(popup);
-        routeCoords.push([lat, lng]);
+    deliveries.forEach(d => {
+        const lat = d.location.lat, lng = d.location.lng;
+        route.push([lat, lng]);
+        const color = COLORS[d.priority] || '#6b7280';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">
+            <path d="M14 0C6.268 0 0 6.268 0 14c0 9.333 14 22 14 22S28 23.333 28 14C28 6.268 21.732 0 14 0z"
+                  fill="${color}" stroke="white" stroke-width="2"/>
+            <circle cx="14" cy="13" r="6" fill="white" opacity="0.9"/>
+            <circle cx="14" cy="13" r="4" fill="${color}"/>
+        </svg>`;
+        const icon = L.divIcon({ html:svg, iconSize:[28,36], iconAnchor:[14,36], popupAnchor:[0,-36], className:'' });
+        const tempBadge = d.temperature_sensitive ? '<br><span style="color:#06b6d4;font-weight:600">❄ Temp-sensitive</span>' : '';
+        L.marker([lat, lng], { icon }).addTo(map)
+         .bindPopup(`<b>${d.location.name}</b><br><span style="color:#6b7280;font-size:12px">${d.location.address}</span><br><b>Deadline:</b> ${d.deadline} | <b>Priority:</b> ${d.priority}<br><b>Status:</b> ${d.status}${tempBadge}`);
     });
 
-    // Draw the route
-    if (routeCoords.length > 1) {
-        L.polyline(routeCoords, {
-            color: '{% if driver.van_type == "refrigerated" %}#06b6d4{% elif driver.van_type == "big" %}#8b5cf6{% else %}#10b981{% endif %}',
-            weight: 3,
-            opacity: 0.7,
-            dashArray: '6, 8'
-        }).addTo(map);
-    }
-
-    // Fit map to all markers
-    if (routeCoords.length > 1) {
-        const bounds = L.latLngBounds(routeCoords);
-        map.fitBounds(bounds, { padding: [40, 40] });
-    }
+    if (route.length > 1)
+        L.polyline(route, { color:'#3b82f6', weight:2.5, opacity:0.65, dashArray:'5,7' }).addTo(map);
 }
 
 document.addEventListener('DOMContentLoaded', initMap);
